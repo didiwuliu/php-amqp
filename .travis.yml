@@ -1,30 +1,104 @@
 language: php
 
-php:
-  - 5.2
-  - 5.3
-  - 5.4
-  - 5.5
+sudo: false
 
 services:
   - rabbitmq
 
-env:
-  - NO_INTERACTION=1 TEST_TIMEOUT=120 LIBRABBITMQ_VERSION=master
-  - NO_INTERACTION=1 TEST_TIMEOUT=120 LIBRABBITMQ_VERSION=v0.5.0
-  - NO_INTERACTION=1 TEST_TIMEOUT=120 LIBRABBITMQ_VERSION=v0.4.1
-  - NO_INTERACTION=1 TEST_TIMEOUT=120 LIBRABBITMQ_VERSION=v0.4.0
+#install:
+#  - sudo apt-get update
+#  - sudo apt-get -qq --fix-missing install valgrind
+#
+#  - wget -qO - http://www.rabbitmq.com/rabbitmq-signing-key-public.asc | sudo apt-key add -
+#  - sudo add-apt-repository 'deb http://www.rabbitmq.com/debian/ testing main'
+#  - sudo apt-get update
+#  - sudo apt-get install --only-upgrade -y rabbitmq-server
+#  - sudo service rabbitmq-server restart
 
-before_script:
-  - sh -c "git clone git://github.com/alanxz/rabbitmq-c.git"
-  - sh -c "cd rabbitmq-c && git checkout ${LIBRABBITMQ_VERSION}"
-  - sh -c "cd rabbitmq-c && git submodule init && git submodule update"
-  - sh -c "cd rabbitmq-c && autoreconf -i && ./configure && make && sudo make install"
-  - sh -c "phpize && ./configure && make"
+env:
+  global:
+    - NO_INTERACTION=1
+    - TEST_TIMEOUT=120
+
+matrix:
+    include:
+        - php: 7.0
+          env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
+        - php: 7.0
+          env: LIBRABBITMQ_VERSION=master
+        - php: 7.0
+          env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
+        - php: 7.0
+          env: LIBRABBITMQ_VERSION=v0.8.0
+        - php: 7.0
+          env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
+        - php: 7.0
+          env: LIBRABBITMQ_VERSION=v0.7.1
+        - php: 7.0
+          env: LIBRABBITMQ_VERSION=v0.5.2 TEST_PHP_ARGS=-m
+        - php: 7.0
+          env: LIBRABBITMQ_VERSION=v0.5.2
+
+        - php: 5.6
+          env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
+        - php: 5.6
+          env: LIBRABBITMQ_VERSION=master
+        - php: 5.6
+          env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
+        - php: 5.6
+          env: LIBRABBITMQ_VERSION=v0.8.0
+        - php: 5.6
+          env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
+        - php: 5.6
+          env: LIBRABBITMQ_VERSION=v0.7.1
+        - php: 5.6
+          env: LIBRABBITMQ_VERSION=v0.5.2 TEST_PHP_ARGS=-m
+        - php: 5.6
+          env: LIBRABBITMQ_VERSION=v0.5.2
+
+        - php: 5.5
+          env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
+        - php: 5.5
+          env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
+        - php: 5.5
+          env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
+        - php: 5.5
+          env: LIBRABBITMQ_VERSION=v0.5.2 TEST_PHP_ARGS=-m
+
+        - php: 5.4
+          env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
+        - php: 5.4
+          env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
+        - php: 5.4
+          env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
+        - php: 5.4
+          env: LIBRABBITMQ_VERSION=v0.5.2 TEST_PHP_ARGS=-m
+
+        - php: 5.3
+          env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
+        - php: 5.3
+          env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
+        - php: 5.3
+          env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
+        - php: 5.3
+          env: LIBRABBITMQ_VERSION=v0.5.2 TEST_PHP_ARGS=-m
+
+before_install:
+  - sh provision/install_rabbitmq-c.sh ${LIBRABBITMQ_VERSION}
+  - if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then phpize && ./configure  --with-librabbitmq-dir=$HOME/rabbitmq-c && make ; fi
+
+install:
+
 
 script:
   - sh -c "make test | tee result.txt"
+  - php -n -c './tmp-php.ini' -d "extension_dir=./modules/" -d "extension=amqp.so" benchmark.php
   - sh test-report.sh
+
+addons:
+  apt:
+    packages:
+      - valgrind
 
 notifications:
   email:

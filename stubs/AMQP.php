@@ -7,6 +7,13 @@
 define('AMQP_NOPARAM', 0);
 
 /**
+ * Passing in this constant as a flag to proper methods will forcefully ignore all other flags.
+ * Do not send basic.consume request during AMQPQueue::consume(). Use this if you want to run callback on top of previously
+ * declared consumers.
+ */
+define('AMQP_JUST_CONSUME', 1);
+
+/**
  * Durable exchanges and queues will survive a broker restart, complete with all of their data.
  */
 define('AMQP_DURABLE', 2);
@@ -41,7 +48,7 @@ define('AMQP_INTERNAL', 32);
 define('AMQP_NOLOCAL', 64);
 
 /**
- * When passed to the {@link AMQPQueue::get()} and {@link AMQPQueue::get()} methods as a flag,
+ * When passed to the {@link AMQPQueue::get()} and {@link AMQPQueue::consume()} methods as a flag,
  * the messages will be immediately marked as acknowledged by the server upon delivery.
  */
 define('AMQP_AUTOACK', 128);
@@ -110,3 +117,9 @@ define('AMQP_EX_TYPE_HEADERS', 'headers');
  *
  */
 define('AMQP_OS_SOCKET_TIMEOUT_ERRNO', 536870947);
+
+
+/**
+ *
+ */
+define('PHP_AMQP_MAX_CHANNELS', 256);

@@ -10,17 +10,34 @@ class AMQPExchange
      *
      * Bind an exchange to another exchange using the specified routing key.
      *
-     * @param string  $exchange_name Name of the exchange to bind.
-     * @param string  $routing_key   The routing key to use for binding.
-     * @param integer $flags         Flags to use for binding, defaults to
-     *                               AMQP_NOPARAM.
+     * @param string $exchange_name Name of the exchange to bind.
+     * @param string $routing_key   The routing key to use for binding.
+     * @param array  $arguments     Additional binding arguments.
      *
      * @throws AMQPExchangeException   On failure.
      * @throws AMQPChannelException    If the channel is not open.
      * @throws AMQPConnectionException If the connection to the broker was lost.
      * @return boolean true on success or false on failure.
      */
-    public function bind($exchange_name, $routing_key, $flags = AMQP_NOPARAM)
+    public function bind($exchange_name, $routing_key = '', array $arguments = array())
+    {
+    }
+
+    /**
+     * Remove binding to another exchange.
+     *
+     * Remove a routing key binding on an another exchange from the given exchange.
+     *
+     * @param string $exchange_name Name of the exchange to bind.
+     * @param string $routing_key   The routing key to use for binding.
+     * @param array  $arguments     Additional binding arguments.
+     *
+     * @throws AMQPExchangeException   On failure.
+     * @throws AMQPChannelException    If the channel is not open.
+     * @throws AMQPConnectionException If the connection to the broker was lost.
+     * @return boolean true on success or false on failure.
+     */
+    public function unbind($exchange_name, $routing_key = '', array $arguments = array())
     {
     }
 
@@ -87,6 +104,16 @@ class AMQPExchange
     {
     }
 
+    /**
+     * Check whether argument associated with the given key exists.
+     *
+     * @param string $key The key to look up.
+     *
+     * @return bool
+     */
+    public function hasArgument($key)
+    {
+    }
     /**
      * Get all arguments set on the given exchange.
      *
@@ -181,9 +208,10 @@ class AMQPExchange
      *
      * @param integer $flags A bitmask of flags. This call currently only
      *                       considers the following flags:
-     *                       AMQP_DURABLE, AMQP_PASSIVE.
+     *                       AMQP_DURABLE, AMQP_PASSIVE
+     *                       (and AMQP_DURABLE, if librabbitmq version >= 0.5.3)
      *
-     * @return boolean True on success or false on failure.
+     * @return void
      */
     public function setFlags($flags)
     {
@@ -194,7 +222,7 @@ class AMQPExchange
      *
      * @param string $exchange_name The name of the exchange to set as string.
      *
-     * @return boolean TRUE on success or FALSE on failure.
+     * @return void
      */
     public function setName($exchange_name)
     {
@@ -204,11 +232,11 @@ class AMQPExchange
      * Set the type of the exchange.
      *
      * Set the type of the exchange. This can be any of AMQP_EX_TYPE_DIRECT,
-     * AMQP_EX_TYPE_FANOUT, AMQP_EX_TYPE_HEADER or AMQP_EX_TYPE_TOPIC.
+     * AMQP_EX_TYPE_FANOUT, AMQP_EX_TYPE_HEADERS or AMQP_EX_TYPE_TOPIC.
      *
      * @param string $exchange_type The type of exchange as a string.
      *
-     * @return boolean TRUE on success or FALSE on failure.
+     * @return void
      */
     public function setType($exchange_type)
     {

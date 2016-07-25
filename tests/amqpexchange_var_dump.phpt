@@ -12,24 +12,190 @@ $cnn->connect();
 $ch = new AMQPChannel($cnn);
 // Declare a new exchange
 $ex = new AMQPExchange($ch);
-$ex->setName('exchange1');
+$ex->setName('exchange-' . microtime(true));
 $ex->setType(AMQP_EX_TYPE_FANOUT);
+var_dump($ex);
 $ex->setArguments(array("x-ha-policy" => "all"));
 var_dump($ex);
 ?>
---EXPECT--
-object(AMQPExchange)#3 (6) {
-  ["name"]=>
-  string(9) "exchange1"
-  ["type"]=>
+--EXPECTF--
+object(AMQPExchange)#3 (9) {
+  ["connection":"AMQPExchange":private]=>
+  object(AMQPConnection)#1 (15) {
+    ["login":"AMQPConnection":private]=>
+    string(5) "guest"
+    ["password":"AMQPConnection":private]=>
+    string(5) "guest"
+    ["host":"AMQPConnection":private]=>
+    string(9) "localhost"
+    ["vhost":"AMQPConnection":private]=>
+    string(1) "/"
+    ["port":"AMQPConnection":private]=>
+    int(5672)
+    ["read_timeout":"AMQPConnection":private]=>
+    float(0)
+    ["write_timeout":"AMQPConnection":private]=>
+    float(0)
+    ["connect_timeout":"AMQPConnection":private]=>
+    float(0)
+    ["channel_max":"AMQPConnection":private]=>
+    int(256)
+    ["frame_max":"AMQPConnection":private]=>
+    int(131072)
+    ["heartbeat":"AMQPConnection":private]=>
+    int(0)
+    ["cacert":"AMQPConnection":private]=>
+    string(0) ""
+    ["key":"AMQPConnection":private]=>
+    string(0) ""
+    ["cert":"AMQPConnection":private]=>
+    string(0) ""
+    ["verify":"AMQPConnection":private]=>
+    bool(true)
+  }
+  ["channel":"AMQPExchange":private]=>
+  object(AMQPChannel)#2 (3) {
+    ["connection":"AMQPChannel":private]=>
+    object(AMQPConnection)#1 (15) {
+      ["login":"AMQPConnection":private]=>
+      string(5) "guest"
+      ["password":"AMQPConnection":private]=>
+      string(5) "guest"
+      ["host":"AMQPConnection":private]=>
+      string(9) "localhost"
+      ["vhost":"AMQPConnection":private]=>
+      string(1) "/"
+      ["port":"AMQPConnection":private]=>
+      int(5672)
+      ["read_timeout":"AMQPConnection":private]=>
+      float(0)
+      ["write_timeout":"AMQPConnection":private]=>
+      float(0)
+      ["connect_timeout":"AMQPConnection":private]=>
+      float(0)
+      ["channel_max":"AMQPConnection":private]=>
+      int(256)
+      ["frame_max":"AMQPConnection":private]=>
+      int(131072)
+      ["heartbeat":"AMQPConnection":private]=>
+      int(0)
+      ["cacert":"AMQPConnection":private]=>
+      string(0) ""
+      ["key":"AMQPConnection":private]=>
+      string(0) ""
+      ["cert":"AMQPConnection":private]=>
+      string(0) ""
+      ["verify":"AMQPConnection":private]=>
+      bool(true)
+    }
+    ["prefetch_count":"AMQPChannel":private]=>
+    int(3)
+    ["prefetch_size":"AMQPChannel":private]=>
+    int(0)
+  }
+  ["name":"AMQPExchange":private]=>
+  string(%d) "exchange-%f"
+  ["type":"AMQPExchange":private]=>
   string(6) "fanout"
-  ["passive"]=>
-  int(0)
-  ["durable"]=>
-  int(0)
-  ["auto_delete"]=>
-  int(0)
-  ["arguments"]=>
+  ["passive":"AMQPExchange":private]=>
+  bool(false)
+  ["durable":"AMQPExchange":private]=>
+  bool(false)
+  ["auto_delete":"AMQPExchange":private]=>
+  bool(false)
+  ["internal":"AMQPExchange":private]=>
+  bool(false)
+  ["arguments":"AMQPExchange":private]=>
+  array(0) {
+  }
+}
+object(AMQPExchange)#3 (9) {
+  ["connection":"AMQPExchange":private]=>
+  object(AMQPConnection)#1 (15) {
+    ["login":"AMQPConnection":private]=>
+    string(5) "guest"
+    ["password":"AMQPConnection":private]=>
+    string(5) "guest"
+    ["host":"AMQPConnection":private]=>
+    string(9) "localhost"
+    ["vhost":"AMQPConnection":private]=>
+    string(1) "/"
+    ["port":"AMQPConnection":private]=>
+    int(5672)
+    ["read_timeout":"AMQPConnection":private]=>
+    float(0)
+    ["write_timeout":"AMQPConnection":private]=>
+    float(0)
+    ["connect_timeout":"AMQPConnection":private]=>
+    float(0)
+    ["channel_max":"AMQPConnection":private]=>
+    int(256)
+    ["frame_max":"AMQPConnection":private]=>
+    int(131072)
+    ["heartbeat":"AMQPConnection":private]=>
+    int(0)
+    ["cacert":"AMQPConnection":private]=>
+    string(0) ""
+    ["key":"AMQPConnection":private]=>
+    string(0) ""
+    ["cert":"AMQPConnection":private]=>
+    string(0) ""
+    ["verify":"AMQPConnection":private]=>
+    bool(true)
+  }
+  ["channel":"AMQPExchange":private]=>
+  object(AMQPChannel)#2 (3) {
+    ["connection":"AMQPChannel":private]=>
+    object(AMQPConnection)#1 (15) {
+      ["login":"AMQPConnection":private]=>
+      string(5) "guest"
+      ["password":"AMQPConnection":private]=>
+      string(5) "guest"
+      ["host":"AMQPConnection":private]=>
+      string(9) "localhost"
+      ["vhost":"AMQPConnection":private]=>
+      string(1) "/"
+      ["port":"AMQPConnection":private]=>
+      int(5672)
+      ["read_timeout":"AMQPConnection":private]=>
+      float(0)
+      ["write_timeout":"AMQPConnection":private]=>
+      float(0)
+      ["connect_timeout":"AMQPConnection":private]=>
+      float(0)
+      ["channel_max":"AMQPConnection":private]=>
+      int(256)
+      ["frame_max":"AMQPConnection":private]=>
+      int(131072)
+      ["heartbeat":"AMQPConnection":private]=>
+      int(0)
+      ["cacert":"AMQPConnection":private]=>
+      string(0) ""
+      ["key":"AMQPConnection":private]=>
+      string(0) ""
+      ["cert":"AMQPConnection":private]=>
+      string(0) ""
+      ["verify":"AMQPConnection":private]=>
+      bool(true)
+    }
+    ["prefetch_count":"AMQPChannel":private]=>
+    int(3)
+    ["prefetch_size":"AMQPChannel":private]=>
+    int(0)
+  }
+  ["name":"AMQPExchange":private]=>
+  string(%d) "exchange-%f"
+  ["type":"AMQPExchange":private]=>
+  string(6) "fanout"
+  ["passive":"AMQPExchange":private]=>
+  bool(false)
+  ["durable":"AMQPExchange":private]=>
+  bool(false)
+  ["auto_delete":"AMQPExchange":private]=>
+  bool(false)
+  ["internal":"AMQPExchange":private]=>
+  bool(false)
+  ["arguments":"AMQPExchange":private]=>
   array(1) {
     ["x-ha-policy"]=>
     string(3) "all"

@@ -6,7 +6,7 @@
 class AMQPConnection
 {
     /**
-     * Establish a connection with the AMQP broker.
+     * Establish a transient connection with the AMQP broker.
      *
      * This method will initiate a connection with the AMQP broker.
      *
@@ -33,6 +33,22 @@ class AMQPConnection
      *      'read_timeout'  => Timeout in for income activity. Note: 0 or greater seconds. May be fractional.
      *      'write_timeout' => Timeout in for outcome activity. Note: 0 or greater seconds. May be fractional.
      *      'connect_timeout' => Connection timeout. Note: 0 or greater seconds. May be fractional.
+     *
+     *      Connection tuning options (see http://www.rabbitmq.com/amqp-0-9-1-reference.html#connection.tune for details):
+     *      'channel_max' => Specifies highest channel number that the server permits. 0 means standard extension limit
+     *                       (see PHP_AMQP_MAX_CHANNELS constant)
+     *      'frame_max'   => The largest frame size that the server proposes for the connection, including frame header
+     *                       and end-byte. 0 means standard extension limit (depends on librabbimq default frame size limit)
+     *      'heartbeat'   => The delay, in seconds, of the connection heartbeat that the server wants.
+     *                       0 means the server does not want a heartbeat. Note, librabbitmq has limited heartbeat support,
+     *                       which means heartbeats checked only during blocking calls.
+     *
+     *      TLS support (see https://www.rabbitmq.com/ssl.html for details):
+     *      'cacert' => Path to the CA cert file in PEM format..
+     *      'cert'   => Path to the client certificate in PEM foramt.
+     *      'key'    => Path to the client key in PEM format.
+     *      'verify' => Enable or disable peer verification. If peer verification is enabled then the common name in the
+     *                  server certificate must match the server name. Peer verification is enabled by default.
      * )
      *
      * @param array $credentials Optional array of credential information for
@@ -43,7 +59,7 @@ class AMQPConnection
     }
 
     /**
-     * Closes the connection with the AMQP broker.
+     * Closes the transient connection with the AMQP broker.
      *
      * This method will close an open connection with the AMQP broker.
      *
@@ -137,13 +153,23 @@ class AMQPConnection
     }
 
     /**
-     * Close any open connections and initiate a new one with the AMQP broker.
+     * Close any open transient connections and initiate a new one with the AMQP broker.
      *
      * @return boolean TRUE on success or FALSE on failure.
      */
     public function reconnect()
     {
     }
+
+    /**
+     * Close any open persistent connections and initiate a new one with the AMQP broker.
+     *
+     * @return boolean TRUE on success or FALSE on failure.
+     */
+    public function preconnect()
+    {
+    }
+
 
     /**
      * Set the hostname used to connect to the AMQP broker.
@@ -260,7 +286,6 @@ class AMQPConnection
     {
     }
 
-
     /**
      * Sets the interval of time to wait for outcome activity to AMQP broker
      *
@@ -279,6 +304,134 @@ class AMQPConnection
      * @return float
      */
     public function getWriteTimeout()
+    {
+    }
+
+    /**
+     * Return last used channel id during current connection session.
+     *
+     * @return int
+     */
+    public function getUsedChannels()
+    {
+    }
+
+    /**
+     * Get the maximum number of channels the connection can handle.
+     *
+     * When connection is connected, effective connection value returned, which is normally the same as original
+     * correspondent value passed to constructor, otherwise original value passed to constructor returned.
+     *
+     * @return int
+     */
+    public function getMaxChannels()
+    {
+    }
+
+    /**
+     * Get max supported frame size per connection in bytes.
+     *
+     * When connection is connected, effective connection value returned, which is normally the same as original
+     * correspondent value passed to constructor, otherwise original value passed to constructor returned.
+     *
+     * @return int
+     */
+    public function getMaxFrameSize()
+    {
+    }
+
+    /**
+     * Get number of seconds between heartbeats of the connection in seconds.
+     *
+     * When connection is connected, effective connection value returned, which is normally the same as original
+     * correspondent value passed to constructor, otherwise original value passed to constructor returned.
+     *
+     * @return int
+     */
+    public function getHeartbeatInterval()
+    {
+    }
+
+    /**
+     * Whether connection persistent.
+     *
+     * When connection is not connected, boolean false always returned
+     *
+     * @return bool
+     */
+    public function isPersistent()
+    {
+    }
+
+    /**
+     * Get path to the CA cert file in PEM format
+     *
+     * @return string
+     */
+    public function getCACert()
+    {
+    }
+
+    /**
+     * Set path to the CA cert file in PEM format
+     *
+     * @param string $cacert
+     */
+    public function setCACert($cacert)
+    {
+    }
+
+    /**
+     * Get path to the client certificate in PEM format
+     *
+     * @return string
+     */
+    public function getCert()
+    {
+    }
+
+    /**
+     * Set path to the client certificate in PEM format
+     *
+     * @param string $cert
+     */
+    public function setCert($cert)
+    {
+    }
+
+    /**
+     * Get path to the client key in PEM format
+     *
+     * @return string
+     */
+    public function getKey()
+    {
+    }
+
+    /**
+     * Set path to the client key in PEM format
+     *
+     * @param string $key
+     */
+    public function setKey($key)
+    {
+    }
+
+    /**
+     * Get whether peer verification enabled or disabled
+     *
+     * @return bool
+     */
+    public function getVerify()
+    {
+    }
+
+    /**
+     * Enable or disable peer verification
+     *
+     * @param bool $verify
+     */
+    public function setVerify($verify)
     {
     }
 }

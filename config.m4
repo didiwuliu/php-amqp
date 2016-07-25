@@ -10,10 +10,10 @@ dnl If your extension references something external, use with:
 
 dnl Make sure that the comment is aligned:
 PHP_ARG_WITH(amqp, for amqp support,
-[  --with-amqp             Include amqp support])
+[	--with-amqp						 Include amqp support])
 
-PHP_ARG_WITH(librabbitmq-dir,  for amqp,
-[  --with-librabbitmq-dir[=DIR]   Set the path to librabbit-mq install prefix.], yes)
+PHP_ARG_WITH(librabbitmq-dir,	for amqp,
+[	--with-librabbitmq-dir[=DIR]	 Set the path to librabbitmq install prefix.], yes)
 
 
 if test "$PHP_AMQP" != "no"; then
@@ -24,50 +24,121 @@ if test "$PHP_AMQP" != "no"; then
 	dnl # --with-amqp -> check with-path
 
 	SEARCH_FOR="amqp_framing.h"
+	AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
 
-	AC_MSG_CHECKING([for amqp files in default path])
-	if test "$PHP_LIBRABBITMQ_DIR" != "no" && test "$PHP_LIBRABBITMQ_DIR" != "yes"; then
-		for i in $PHP_LIBRABBITMQ_DIR; do
-			if test -r $i/include/$SEARCH_FOR;
-				then
-				AMQP_DIR=$i
-				AC_MSG_RESULT(found in $i)
-				break
-			fi
-		done
+	if test "$PHP_LIBRABBITMQ_DIR" = "yes" -a -x $PKG_CONFIG; then
+		AC_MSG_CHECKING([for amqp using pkg-config])
+
+		if ! $PKG_CONFIG --exists librabbitmq ; then
+			AC_MSG_ERROR([librabbitmq not found])
+		fi
+
+		PHP_AMQP_VERSION=`$PKG_CONFIG librabbitmq --modversion`
+		AC_MSG_RESULT([found version $PHP_AMQP_VERSION])
+
+		if ! $PKG_CONFIG librabbitmq --atleast-version 0.5.2 ; then
+			AC_MSG_ERROR([librabbitmq must be version 0.5.2 or greater])
+		fi
+		if ! $PKG_CONFIG librabbitmq --atleast-version 0.6.0 ; then
+			AC_MSG_WARN([librabbitmq 0.6.0 or greater recommended])
+		fi
+
+		PHP_AMQP_LIBS=`$PKG_CONFIG librabbitmq --libs`
+		PHP_AMQP_INCS=`$PKG_CONFIG librabbitmq --cflags`
+
+	    PHP_EVAL_LIBLINE($PHP_AMQP_LIBS, AMQP_SHARED_LIBADD)
+	    PHP_EVAL_INCLINE($PHP_AMQP_INCS)
+
 	else
-		for i in $PHP_AMQP /usr/local /usr ; do
-			if test -r $i/include/$SEARCH_FOR;
-				then
-				AMQP_DIR=$i
-				AC_MSG_RESULT(found in $i)
-				break
+		AC_MSG_CHECKING([for amqp files in default path])
+		if test "$PHP_LIBRABBITMQ_DIR" != "no" && test "$PHP_LIBRABBITMQ_DIR" != "yes"; then
+			for i in $PHP_LIBRABBITMQ_DIR; do
+				if test -r $i/include/$SEARCH_FOR;
+					then
+					AMQP_DIR=$i
+					AC_MSG_RESULT(found in $i)
+					break
+				fi
+			done
+		else
+			for i in $PHP_AMQP /usr/local /usr ; do
+				if test -r $i/include/$SEARCH_FOR;
+					then
+					AMQP_DIR=$i
+					AC_MSG_RESULT(found in $i)
+					break
+				fi
+			done
+		fi
+
+		if test -z "$AMQP_DIR"; then
+			AC_MSG_RESULT([not found])
+			AC_MSG_ERROR([Please reinstall the librabbitmq distribution itself or (re)install librabbitmq development package if it available in your system])
+		fi
+
+		dnl # --with-amqp -> add include path
+		PHP_ADD_INCLUDE($AMQP_DIR/include)
+
+		old_CFLAGS=$CFLAGS
+		CFLAGS="$CFLAGS -I$AMQP_DIR/include"
+
+		AC_CACHE_CHECK(for librabbitmq version, ac_cv_librabbitmq_version, [
+			AC_TRY_RUN([
+				#include "amqp.h"
+				#include <stdio.h>
+
+				int main ()
+				{
+					FILE *testfile = fopen("conftestval", "w");
+
+					if (NULL == testfile) {
+						return 1;
+					}
+
+					fprintf(testfile, "%s\n", AMQ_VERSION_STRING);
+					fclose(testfile);
+
+					return 0;
+				}
+			], [ac_cv_librabbitmq_version=`cat ./conftestval`], [ac_cv_librabbitmq_version=NONE], [ac_cv_librabbitmq_version=NONE])
+		])
+
+		CFLAGS=$old_CFLAGS
+
+		if test "$ac_cv_librabbitmq_version" != "NONE"; then
+			ac_IFS=$IFS
+			IFS=.
+			set $ac_cv_librabbitmq_version
+			IFS=$ac_IFS
+			LIBRABBITMQ_API_VERSION=`expr [$]1 \* 1000000 + [$]2 \* 1000 + [$]3`
+
+			if test "$LIBRABBITMQ_API_VERSION" -lt 5001 ; then
+				 AC_MSG_ERROR([librabbitmq must be version 0.5.2 or greater, $ac_cv_librabbitmq_version version given instead])
 			fi
-		done
+
+			if test "$LIBRABBITMQ_API_VERSION" -lt 6000 ; then
+				 AC_MSG_WARN([librabbitmq 0.6.0 or greater recommended, current version is $ac_cv_librabbitmq_version])
+			fi
+		else
+			AC_MSG_ERROR([could not determine librabbitmq version])
+		fi
+
+		dnl # --with-amqp -> check for lib and symbol presence
+		LIBNAME=rabbitmq
+		LIBSYMBOL=rabbitmq
+
+		PHP_ADD_LIBRARY_WITH_PATH($LIBNAME, $AMQP_DIR/$PHP_LIBDIR, AMQP_SHARED_LIBADD)
 	fi
-
-	if test -z "$AMQP_DIR"; then
-		AC_MSG_RESULT([not found])
-		AC_MSG_ERROR([Please reinstall the librabbit-mq distribution])
-	fi
-
-	dnl # --with-amqp -> add include path
-
-	PHP_ADD_INCLUDE($AMQP_DIR/include)
-
-	dnl # --with-amqp -> check for lib and symbol presence
-
-	LIBNAME=rabbitmq
-	LIBSYMBOL=rabbitmq
+	PHP_SUBST(AMQP_SHARED_LIBADD)
 
 	if test -z "$TRAVIS" ; then
 		type git &>/dev/null
 
 		if test $? -eq 0 ; then
-			git describe --tags &>/dev/null
+			git describe --abbrev=0 --tags &>/dev/null
 
 			if test $? -eq 0 ; then
-				AC_DEFINE_UNQUOTED([PHP_AMQP_VERSION], ["`git describe --tags --abbr=0`-dev"], [git version])
+				AC_DEFINE_UNQUOTED([PHP_AMQP_VERSION], ["`git describe --abbrev=0 --tags`-`git rev-parse --abbrev-ref HEAD`-dev"], [git version])
 			fi
 
 			git rev-parse --short HEAD &>/dev/null
@@ -80,10 +151,7 @@ if test "$PHP_AMQP" != "no"; then
 		fi
 	fi
 
-	PHP_ADD_LIBRARY_WITH_PATH($LIBNAME, $AMQP_DIR/lib, AMQP_SHARED_LIBADD)
-	PHP_SUBST(AMQP_SHARED_LIBADD)
-
-	AMQP_SOURCES="amqp.c amqp_exchange.c amqp_queue.c amqp_connection.c amqp_channel.c amqp_envelope.c amqp_object_store.c"
+	AMQP_SOURCES="amqp.c amqp_exchange.c amqp_queue.c amqp_connection.c amqp_connection_resource.c amqp_channel.c amqp_envelope.c amqp_basic_properties.c amqp_methods_handling.c"
 
 	PHP_NEW_EXTENSION(amqp, $AMQP_SOURCES, $ext_shared)
 fi

@@ -32,6 +32,8 @@ typedef zval* PHP5to7_zval_t;
 
 #define PHP5to7_MAYBE_DEREF(zv) (*(zv))
 #define PHP5to7_MAYBE_PTR(zv) (zv)
+#define PHP5to7_MAYBE_PTR_TYPE PHP5to7_zval_t
+#define PHP5to7_MAYBE_PARAM_PTR(zv) (&(zv))
 
 #define PHP5to7_MAYBE_INIT(zv) MAKE_STD_ZVAL(zv);
 #define PHP5to7_ARRAY_INIT(zv) array_init(zv);
@@ -45,6 +47,7 @@ typedef zval* PHP5to7_zval_t;
 #define PHP5to7_ZEND_HASH_FIND(ht, str, len, res) \
         (zend_hash_find((ht), (str), (uint)(len), (void **) &(res)) != FAILURE)
 
+#define PHP5to7_ZEND_HASH_STRLEN(len) (uint)((len) + 1)
 #define PHP5to7_ZEND_HASH_DEL(ht, key, len) zend_hash_del_key_or_index((ht), (key), (uint)(len), 0, HASH_DEL_KEY);
 #define PHP5to7_ZEND_HASH_ADD(ht, key, len, pData, nDataSize) (zend_hash_add((ht), (key), (uint)(len), &(pData), nDataSize, NULL) != FAILURE)
 #define PHP5to7_ZEND_HASH_STR_UPD_MEM(ht, key, len, pData, nDataSize) PHP5to7_ZEND_HASH_ADD((ht), (key), (len), (pData), (nDataSize))
@@ -83,7 +86,6 @@ typedef zval* PHP5to7_zval_t;
 
 #define PHP5to7_ZEND_HASH_KEY_MAYBE_UNPACK(real_key, key, key_len)
 
-#define PHP5to7_ZEND_HASH_FOREACH_CONTINUE continue
 #define PHP5to7_ZEND_HASH_FOREACH_END()
 
 #define Z_TRY_ADDREF_P(pz) Z_ADDREF_P(pz)
@@ -103,6 +105,9 @@ typedef zend_rsrc_list_entry PHP5to7_zend_resource_le_t;
 #define PHP5to7_ZEND_REGISTER_RESOURCE(rsrc_pointer, rsrc_type) ZEND_REGISTER_RESOURCE(NULL, (rsrc_pointer), (rsrc_type))
 
 #define PHP5to7_PARENT_CLASS_NAME_C(name) , (name)
+
+#define ZEND_ULONG_FMT "%" PRIu64
+#define PHP5to7_ZEND_ACC_FINAL_CLASS ZEND_ACC_FINAL_CLASS
 
 #endif //PHP_AMQP_PHP5_SUPPORT_H
 

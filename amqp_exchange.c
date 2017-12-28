@@ -20,9 +20,6 @@
   | - Jonathan Tansavatdi                                                |
   +----------------------------------------------------------------------+
 */
-
-/* $Id: amqp_exchange.c 327551 2012-09-09 03:49:34Z pdezwart $ */
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -52,6 +49,7 @@
 #include "amqp_connection.h"
 #include "amqp_channel.h"
 #include "amqp_exchange.h"
+#include "amqp_type.h"
 
 zend_class_entry *amqp_exchange_class_entry;
 #define this_ce amqp_exchange_class_entry
@@ -271,7 +269,7 @@ static PHP_METHOD(amqp_exchange_class, setArguments)
 {
 	zval *zvalArguments;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &zvalArguments) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a/", &zvalArguments) == FAILURE) {
 		return;
 	}
 
@@ -346,9 +344,8 @@ static PHP_METHOD(amqp_exchange_class, declareExchange)
 		return;
 	}
 
-	arguments = convert_zval_to_amqp_table(PHP_AMQP_READ_THIS_PROP("arguments") TSRMLS_CC);
+	arguments = php_amqp_type_convert_zval_to_amqp_table(PHP_AMQP_READ_THIS_PROP("arguments") TSRMLS_CC);
 
-#if AMQP_VERSION_MAJOR * 100 + AMQP_VERSION_MINOR * 10 + AMQP_VERSION_PATCH > 52
 	amqp_exchange_declare(
 		channel_resource->connection_resource->connection_state,
 		channel_resource->channel_id,
@@ -360,29 +357,16 @@ static PHP_METHOD(amqp_exchange_class, declareExchange)
 		PHP_AMQP_READ_THIS_PROP_BOOL("internal"),
 		*arguments
 	);
-#else
-	amqp_exchange_declare(
-		channel_resource->connection_resource->connection_state,
-		channel_resource->channel_id,
-		amqp_cstring_bytes(PHP_AMQP_READ_THIS_PROP_STR("name")),
-		amqp_cstring_bytes(PHP_AMQP_READ_THIS_PROP_STR("type")),
-		PHP_AMQP_READ_THIS_PROP_BOOL("passive"),
-		PHP_AMQP_READ_THIS_PROP_BOOL("durable"),
-		*arguments
-	);
-#endif
 
 	amqp_rpc_reply_t res = amqp_get_rpc_reply(channel_resource->connection_resource->connection_state);
 
-	php_amqp_free_amqp_table(arguments);
+	php_amqp_type_free_amqp_table(arguments);
+	php_amqp_maybe_release_buffers_on_channel(channel_resource->connection_resource, channel_resource);
 
 	if (PHP_AMQP_MAYBE_ERROR(res, channel_resource)) {
 		php_amqp_zend_throw_exception_short(res, amqp_exchange_exception_class_entry TSRMLS_CC);
-		php_amqp_maybe_release_buffers_on_channel(channel_resource->connection_resource, channel_resource);
 		return;
 	}
-
-	php_amqp_maybe_release_buffers_on_channel(channel_resource->connection_resource, channel_resource);
 
 	RETURN_TRUE;
 }
@@ -591,7 +575,7 @@ static PHP_METHOD(amqp_exchange_class, publish)
 		SEPARATE_ZVAL(tmp);
 		convert_to_array(PHP5to7_MAYBE_DEREF(tmp));
 
-		headers = convert_zval_to_amqp_table(PHP5to7_MAYBE_DEREF(tmp) TSRMLS_CC);
+		headers = php_amqp_type_convert_zval_to_amqp_table(PHP5to7_MAYBE_DEREF(tmp) TSRMLS_CC);
 
 		props._flags |= AMQP_BASIC_HEADERS_FLAG;
 		props.headers = *headers;
@@ -616,11 +600,11 @@ static PHP_METHOD(amqp_exchange_class, publish)
 		(AMQP_MANDATORY & flags) ? 1 : 0, /* mandatory */
 		(AMQP_IMMEDIATE & flags) ? 1 : 0, /* immediate */
 		&props,
-		php_amqp_long_string(msg, msg_len) /* message body */
+		php_amqp_type_char_to_amqp_long(msg, msg_len) /* message body */
 	);
 
 	if (headers) {
-		php_amqp_free_amqp_table(headers);
+		php_amqp_type_free_amqp_table(headers);
 	}
 
 #ifndef PHP_WIN32
@@ -636,7 +620,7 @@ static PHP_METHOD(amqp_exchange_class, publish)
 
 		php_amqp_error(res, &PHP_AMQP_G(error_message), channel_resource->connection_resource, channel_resource TSRMLS_CC);
 
-		php_amqp_zend_throw_exception(res, amqp_exchange_exception_class_entry, PHP_AMQP_G(error_message), 0 TSRMLS_CC);
+		php_amqp_zend_throw_exception(res, amqp_exchange_exception_class_entry, PHP_AMQP_G(error_message), PHP_AMQP_G(error_code) TSRMLS_CC);
 		php_amqp_maybe_release_buffers_on_channel(channel_resource->connection_resource, channel_resource);
 		return;
 	}
@@ -673,7 +657,7 @@ static PHP_METHOD(amqp_exchange_class, bind)
 	PHP_AMQP_VERIFY_CHANNEL_RESOURCE(channel_resource, "Could not bind to exchange.");
 
 	if (zvalArguments) {
-		arguments = convert_zval_to_amqp_table(zvalArguments TSRMLS_CC);
+		arguments = php_amqp_type_convert_zval_to_amqp_table(zvalArguments TSRMLS_CC);
 	}
 
 	amqp_exchange_bind(
@@ -686,7 +670,7 @@ static PHP_METHOD(amqp_exchange_class, bind)
 	);
 
 	if (arguments) {
-		php_amqp_free_amqp_table(arguments);
+		php_amqp_type_free_amqp_table(arguments);
 	}
 
 	amqp_rpc_reply_t res = amqp_get_rpc_reply(channel_resource->connection_resource->connection_state);
@@ -730,7 +714,7 @@ static PHP_METHOD(amqp_exchange_class, unbind)
 	PHP_AMQP_VERIFY_CHANNEL_RESOURCE(channel_resource, "Could not unbind from exchange.");
 
 	if (zvalArguments) {
-		arguments = convert_zval_to_amqp_table(zvalArguments TSRMLS_CC);
+		arguments = php_amqp_type_convert_zval_to_amqp_table(zvalArguments TSRMLS_CC);
 	}
 
 	amqp_exchange_unbind(
@@ -743,7 +727,7 @@ static PHP_METHOD(amqp_exchange_class, unbind)
 	);
 
 	if (arguments) {
-		php_amqp_free_amqp_table(arguments);
+		php_amqp_type_free_amqp_table(arguments);
 	}
 
 	amqp_rpc_reply_t res = amqp_get_rpc_reply(channel_resource->connection_resource->connection_state);

@@ -20,9 +20,6 @@
   | - Jonathan Tansavatdi                                                |
   +----------------------------------------------------------------------+
 */
-
-/* $Id: amqp.c 327551 2012-09-09 03:49:34Z pdezwart $ */
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -45,13 +42,14 @@
 
 #include "php_amqp.h"
 #include "amqp_connection.h"
-#include "amqp_channel.h"
-#include "amqp_queue.h"
-#include "amqp_exchange.h"
-#include "amqp_envelope.h"
 #include "amqp_basic_properties.h"
 #include "amqp_connection_resource.h"
-
+#include "amqp_channel.h"
+#include "amqp_envelope.h"
+#include "amqp_exchange.h"
+#include "amqp_queue.h"
+#include "amqp_timestamp.h"
+#include "amqp_decimal.h"
 
 #ifdef PHP_WIN32
 # include "win32/unistd.h"
@@ -59,20 +57,15 @@
 # include <unistd.h>
 #endif
 
-#include "amqp_connection.h"
-#include "amqp_connection_resource.h"
-#include "amqp_channel.h"
-#include "amqp_envelope.h"
-#include "amqp_exchange.h"
-#include "amqp_queue.h"
-
 /* True global resources - no need for thread safety here */
 
 zend_class_entry *amqp_exception_class_entry,
 				 *amqp_connection_exception_class_entry,
 				 *amqp_channel_exception_class_entry,
 				 *amqp_queue_exception_class_entry,
-				 *amqp_exchange_exception_class_entry;
+				 *amqp_exchange_exception_class_entry,
+				 *amqp_envelope_exception_class_entry,
+				 *amqp_value_exception_class_entry;
 
 /* {{{ amqp_functions[]
 *
@@ -90,7 +83,7 @@ PHP_INI_BEGIN()
 	PHP_INI_ENTRY("amqp.timeout",			DEFAULT_TIMEOUT,			PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.read_timeout",		DEFAULT_READ_TIMEOUT,		PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.write_timeout",		DEFAULT_WRITE_TIMEOUT,		PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.connect_timeout",	DEFAULT_CONNECT_TIMEOUT,		PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.connect_timeout",	DEFAULT_CONNECT_TIMEOUT,	PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.login",				DEFAULT_LOGIN,				PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.password",			DEFAULT_PASSWORD,			PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.auto_ack",			DEFAULT_AUTOACK,			PHP_INI_ALL, NULL)
@@ -109,6 +102,7 @@ ZEND_DECLARE_MODULE_GLOBALS(amqp);
 static PHP_GINIT_FUNCTION(amqp) /* {{{ */
 {
 	amqp_globals->error_message = NULL;
+	amqp_globals->error_code = 0;
 } /* }}} */
 
 static PHP_MINIT_FUNCTION(amqp) /* {{{ */
@@ -125,6 +119,8 @@ static PHP_MINIT_FUNCTION(amqp) /* {{{ */
 	PHP_MINIT(amqp_exchange)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(amqp_basic_properties)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(amqp_envelope)(INIT_FUNC_ARGS_PASSTHRU);
+	PHP_MINIT(amqp_timestamp)(INIT_FUNC_ARGS_PASSTHRU);
+	PHP_MINIT(amqp_decimal)(INIT_FUNC_ARGS_PASSTHRU);
 
 	/* Class Exceptions */
 	INIT_CLASS_ENTRY(ce, "AMQPException", NULL);
@@ -139,8 +135,15 @@ static PHP_MINIT_FUNCTION(amqp) /* {{{ */
 	INIT_CLASS_ENTRY(ce, "AMQPQueueException", NULL);
 	amqp_queue_exception_class_entry = PHP5to7_zend_register_internal_class_ex(&ce, amqp_exception_class_entry);
 
+	INIT_CLASS_ENTRY(ce, "AMQPEnvelopeException", NULL);
+	amqp_envelope_exception_class_entry = PHP5to7_zend_register_internal_class_ex(&ce, amqp_exception_class_entry);
+	zend_declare_property_null(amqp_envelope_exception_class_entry, ZEND_STRL("envelope"), ZEND_ACC_PUBLIC TSRMLS_CC);
+
 	INIT_CLASS_ENTRY(ce, "AMQPExchangeException", NULL);
 	amqp_exchange_exception_class_entry = PHP5to7_zend_register_internal_class_ex(&ce, amqp_exception_class_entry);
+
+	INIT_CLASS_ENTRY(ce, "AMQPValueException", NULL);
+	amqp_value_exception_class_entry = PHP5to7_zend_register_internal_class_ex(&ce, amqp_exception_class_entry);
 
 	REGISTER_INI_ENTRIES();
 
@@ -185,6 +188,8 @@ static PHP_RSHUTDOWN_FUNCTION(amqp) /* {{{ */
 		efree(PHP_AMQP_G(error_message));
 		PHP_AMQP_G(error_message) = NULL;
     }
+
+    PHP_AMQP_G(error_code) = 0;
 
     return SUCCESS;
 } /* }}} */
@@ -236,6 +241,7 @@ int php_amqp_error_advanced(amqp_rpc_reply_t reply, char **message, amqp_connect
 {
 	assert(connection_resource != NULL);
 
+	PHP_AMQP_G(error_code) = 0;
 	if (*message != NULL) {
 		efree(*message);
 	}
@@ -266,7 +272,7 @@ int php_amqp_error_advanced(amqp_rpc_reply_t reply, char **message, amqp_connect
 				channel_resource->is_connected = '\0';
 
 				/* Close channel */
-				php_amqp_close_channel(channel_resource TSRMLS_CC);
+				php_amqp_close_channel(channel_resource, 1 TSRMLS_CC);
 			}
 			/* No more error handling necessary, returning. */
 			break;
@@ -279,7 +285,7 @@ int php_amqp_error_advanced(amqp_rpc_reply_t reply, char **message, amqp_connect
 }
 
 void php_amqp_zend_throw_exception_short(amqp_rpc_reply_t reply, zend_class_entry *exception_ce TSRMLS_DC) {
-	php_amqp_zend_throw_exception(reply, exception_ce, PHP_AMQP_G(error_message), 0 TSRMLS_CC);
+	php_amqp_zend_throw_exception(reply, exception_ce, PHP_AMQP_G(error_message), PHP_AMQP_G(error_code) TSRMLS_CC);
 }
 
 void php_amqp_zend_throw_exception(amqp_rpc_reply_t reply, zend_class_entry *exception_ce, const char *message, PHP5to7_param_long_type_t code TSRMLS_DC)
@@ -323,205 +329,6 @@ void php_amqp_maybe_release_buffers_on_channel(amqp_connection_resource *connect
 	if (connection_resource) {
 		amqp_maybe_release_buffers_on_channel(connection_resource->connection_state, channel_resource->channel_id);
 	}
-}
-
-amqp_bytes_t php_amqp_long_string(char const *cstr, PHP5to7_param_str_len_type_t len)
-{
-	if (len < 1) {
-		return amqp_empty_bytes;
-	}
-
-	amqp_bytes_t result;
-	result.len   = (size_t)len;
-	result.bytes = (void *) cstr;
-
-	return result;
-}
-
-char *stringify_bytes(amqp_bytes_t bytes)
-{
-/* We will need up to 4 chars per byte, plus the terminating 0 */
-	char *res = emalloc(bytes.len * 4 + 1);
-	uint8_t *data = bytes.bytes;
-	char *p = res;
-	size_t i;
-
-	for (i = 0; i < bytes.len; i++) {
-		if (data[i] >= 32 && data[i] != 127) {
-			*p++ = data[i];
-		} else {
-			*p++ = '\\';
-			*p++ = '0' + (data[i] >> 6);
-			*p++ = '0' + (data[i] >> 3 & 0x7);
-			*p++ = '0' + (data[i] & 0x7);
-		}
-	}
-
-	*p = 0;
-	return res;
-}
-
-void internal_convert_zval_to_amqp_table(zval *zvalArguments, amqp_table_t *arguments, char allow_int_keys TSRMLS_DC)
-{
-	HashTable *ht;
-	HashPosition pos;
-
-	zval *value;
-	zval **data;
-
-	PHP5to7_ZEND_REAL_HASH_KEY_T *real_key;
-
-	char *key;
-	uint key_len;
-
-	ulong index;
-
-	char type[16];
-	amqp_table_t *inner_table;
-
-	ht = Z_ARRVAL_P(zvalArguments);
-
-	/* Allocate all the memory necessary for storing the arguments */
-	arguments->entries = (amqp_table_entry_t *)ecalloc((size_t)zend_hash_num_elements(ht), sizeof(amqp_table_entry_t));
-	arguments->num_entries = 0;
-
-	PHP5to7_ZEND_HASH_FOREACH_KEY_VAL(ht, index, real_key, key, key_len, data, value, pos) {
-		char *strKey;
-		char *strValue;
-		amqp_table_entry_t *table;
-		amqp_field_value_t *field;
-
-
-		/* Now pull the key */
-
-		if (!PHP5to7_ZEND_HASH_KEY_IS_STRING(ht, real_key, key, key_len, index, pos)) {
-			if (allow_int_keys) {
-				/* Convert to strings non-string keys */
-				char str[32];
-
-				key_len = sprintf(str, "%lu", index);
-				key     = str;
-			} else {
-				/* Skip things that are not strings */
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Ignoring non-string header field '%lu'", index);
-
-
-
-				PHP5to7_ZEND_HASH_FOREACH_CONTINUE;
-			}
-		} else {
-			PHP5to7_ZEND_HASH_KEY_MAYBE_UNPACK(real_key, key, key_len);
-		}
-
-		/* Build the value */
-		table = &arguments->entries[arguments->num_entries++];
-		field = &table->value;
-
-		switch (Z_TYPE_P(value)) {
-			PHP5to7_CASE_IS_BOOL:
-				field->kind          = AMQP_FIELD_KIND_BOOLEAN;
-				field->value.boolean = (amqp_boolean_t)Z_LVAL_P(value);
-				break;
-			case IS_DOUBLE:
-				field->kind      = AMQP_FIELD_KIND_F64;
-				field->value.f64 = Z_DVAL_P(value);
-				break;
-			case IS_LONG:
-				field->kind      = AMQP_FIELD_KIND_I64;
-				field->value.i64 = Z_LVAL_P(value);
-				break;
-			case IS_STRING:
-				field->kind        = AMQP_FIELD_KIND_UTF8;
-
-				if (Z_STRLEN_P(value)) {
-					amqp_bytes_t bytes;
-					bytes.len = (size_t) Z_STRLEN_P(value);
-					bytes.bytes = estrndup(Z_STRVAL_P(value), (uint)Z_STRLEN_P(value));
-
-					field->value.bytes = bytes;
-				} else {
-					field->value.bytes = amqp_empty_bytes;
-				}
-
-				break;
-			case IS_ARRAY:
-				field->kind = AMQP_FIELD_KIND_TABLE;
-				internal_convert_zval_to_amqp_table(value, &field->value.table, 1 TSRMLS_CC);
-
-				break;
-			default:
-				switch(Z_TYPE_P(value)) {
-					case IS_NULL:     strcpy(type, "null"); break;
-					case IS_OBJECT:   strcpy(type, "object"); break;
-					case IS_RESOURCE: strcpy(type, "resource"); break;
-					default:          strcpy(type, "unknown");
-				}
-
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Ignoring field '%s' due to unsupported value type (%s)", key, type);
-
-				/* Reset entries counter back */
-				arguments->num_entries --;
-
-				PHP5to7_ZEND_HASH_FOREACH_CONTINUE;
-		}
-
-		strKey     = estrndup(key, key_len);
-		table->key = amqp_cstring_bytes(strKey);
-
-	} PHP5to7_ZEND_HASH_FOREACH_END();
-};
-
-amqp_table_t *convert_zval_to_amqp_table(zval *zvalArguments TSRMLS_DC)
-{
-	amqp_table_t *arguments;
-	/* In setArguments, we are overwriting all the existing values */
-	arguments = (amqp_table_t *)emalloc(sizeof(amqp_table_t));
-
-	internal_convert_zval_to_amqp_table(zvalArguments, arguments, 0 TSRMLS_CC);
-
-	return arguments;
-}
-
-
-
-
-void internal_php_amqp_free_amqp_table(amqp_table_t *object, char clear_root)
-{
-	if (!object) {
-		return;
-	}
-
-	if (object->entries) {
-		int macroEntryCounter;
-		for (macroEntryCounter = 0; macroEntryCounter < object->num_entries; macroEntryCounter++) {
-
-			amqp_table_entry_t *entry = &object->entries[macroEntryCounter];
-			efree(entry->key.bytes);
-
-			switch (entry->value.kind) {
-				case AMQP_FIELD_KIND_TABLE:
-					internal_php_amqp_free_amqp_table(&entry->value.value.table, 0);
-					break;
-				case AMQP_FIELD_KIND_UTF8:
-					if (entry->value.value.bytes.bytes) {
-						efree(entry->value.value.bytes.bytes);
-					}
-					break;
-				default:
-					break;
-			}
-		}
-		efree(object->entries);
-	}
-
-	if (clear_root) {
-		efree(object);
-	}
-}
-
-void php_amqp_free_amqp_table(amqp_table_t *object)
-{
-	internal_php_amqp_free_amqp_table(object, 1);
 }
 
 /*

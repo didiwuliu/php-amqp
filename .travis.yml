@@ -5,87 +5,51 @@ sudo: false
 services:
   - rabbitmq
 
-#install:
-#  - sudo apt-get update
-#  - sudo apt-get -qq --fix-missing install valgrind
-#
-#  - wget -qO - http://www.rabbitmq.com/rabbitmq-signing-key-public.asc | sudo apt-key add -
-#  - sudo add-apt-repository 'deb http://www.rabbitmq.com/debian/ testing main'
-#  - sudo apt-get update
-#  - sudo apt-get install --only-upgrade -y rabbitmq-server
-#  - sudo service rabbitmq-server restart
-
 env:
   global:
     - NO_INTERACTION=1
     - TEST_TIMEOUT=120
 
 matrix:
-    include:
-        - php: 7.0
-          env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
-        - php: 7.0
-          env: LIBRABBITMQ_VERSION=master
-        - php: 7.0
-          env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
-        - php: 7.0
-          env: LIBRABBITMQ_VERSION=v0.8.0
-        - php: 7.0
-          env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
-        - php: 7.0
-          env: LIBRABBITMQ_VERSION=v0.7.1
-        - php: 7.0
-          env: LIBRABBITMQ_VERSION=v0.5.2 TEST_PHP_ARGS=-m
-        - php: 7.0
-          env: LIBRABBITMQ_VERSION=v0.5.2
+  allow_failures:
+    - php: nightly
 
-        - php: 5.6
-          env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
-        - php: 5.6
-          env: LIBRABBITMQ_VERSION=master
-        - php: 5.6
-          env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
-        - php: 5.6
-          env: LIBRABBITMQ_VERSION=v0.8.0
-        - php: 5.6
-          env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
-        - php: 5.6
-          env: LIBRABBITMQ_VERSION=v0.7.1
-        - php: 5.6
-          env: LIBRABBITMQ_VERSION=v0.5.2 TEST_PHP_ARGS=-m
-        - php: 5.6
-          env: LIBRABBITMQ_VERSION=v0.5.2
+  include:
+    - php: nightly
+      env: LIBRABBITMQ_VERSION=master
+    - php: nightly
+      env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
 
-        - php: 5.5
-          env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
-        - php: 5.5
-          env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
-        - php: 5.5
-          env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
-        - php: 5.5
-          env: LIBRABBITMQ_VERSION=v0.5.2 TEST_PHP_ARGS=-m
+    - php: 7.1
+      env: LIBRABBITMQ_VERSION=master
+    - php: 7.1
+      env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
+    - php: 7.1
+      env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
+    - php: 7.1
+      env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
 
-        - php: 5.4
-          env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
-        - php: 5.4
-          env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
-        - php: 5.4
-          env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
-        - php: 5.4
-          env: LIBRABBITMQ_VERSION=v0.5.2 TEST_PHP_ARGS=-m
+    - php: 7.0
+      env: LIBRABBITMQ_VERSION=master
+    - php: 7.0
+      env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
+    - php: 7.0
+      env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
+    - php: 7.0
+      env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
 
-        - php: 5.3
-          env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
-        - php: 5.3
-          env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
-        - php: 5.3
-          env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
-        - php: 5.3
-          env: LIBRABBITMQ_VERSION=v0.5.2 TEST_PHP_ARGS=-m
+    - php: 5.6
+      env: LIBRABBITMQ_VERSION=master
+    - php: 5.6
+      env: LIBRABBITMQ_VERSION=master TEST_PHP_ARGS=-m
+    - php: 5.6
+      env: LIBRABBITMQ_VERSION=v0.8.0 TEST_PHP_ARGS=-m
+    - php: 5.6
+      env: LIBRABBITMQ_VERSION=v0.7.1 TEST_PHP_ARGS=-m
 
 before_install:
-  - sh provision/install_rabbitmq-c.sh ${LIBRABBITMQ_VERSION}
-  - if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then phpize && ./configure  --with-librabbitmq-dir=$HOME/rabbitmq-c && make ; fi
+  - sudo ./provision/install_rabbitmq-c.sh ${LIBRABBITMQ_VERSION}
+  - if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then phpize && ./configure && make ; fi
 
 install:
 
@@ -98,6 +62,7 @@ script:
 addons:
   apt:
     packages:
+      - cmake
       - valgrind
 
 notifications:

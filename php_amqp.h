@@ -20,9 +20,6 @@
   | - Jonathan Tansavatdi                                                |
   +----------------------------------------------------------------------+
 */
-
-/* $Id: php_amqp.h 327551 2012-09-09 03:49:34Z pdezwart $ */
-
 #ifndef PHP_AMQP_H
 #define PHP_AMQP_H
 
@@ -31,7 +28,9 @@ extern zend_class_entry *amqp_exception_class_entry,
 		*amqp_connection_exception_class_entry,
 		*amqp_channel_exception_class_entry,
 		*amqp_exchange_exception_class_entry,
-		*amqp_queue_exception_class_entry;
+		*amqp_queue_exception_class_entry,
+		*amqp_envelope_exception_class_entry,
+		*amqp_value_exception_class_entry;
 
 
 typedef struct _amqp_connection_resource amqp_connection_resource;
@@ -49,7 +48,7 @@ typedef struct _amqp_callback_bucket amqp_callback_bucket;
 
 #include "amqp_connection_resource.h"
 
-#include "amqp.h"
+#include <amqp.h>
 
 extern zend_module_entry amqp_module_entry;
 #define phpext_amqp_ptr &amqp_module_entry
@@ -96,15 +95,11 @@ extern zend_module_entry amqp_module_entry;
 
 #define PHP_AMQP_CONNECTION_RES_NAME "AMQP Connection Resource"
 
-amqp_table_t *convert_zval_to_amqp_table(zval *zvalArguments TSRMLS_DC);
-void php_amqp_free_amqp_table(amqp_table_t * table);
-
-char *stringify_bytes(amqp_bytes_t bytes);
-
 struct _amqp_channel_resource {
 	char is_connected;
 	amqp_channel_t channel_id;
 	amqp_connection_resource *connection_resource;
+    amqp_channel_object *parent;
 };
 
 struct _amqp_callback_bucket {
@@ -129,6 +124,7 @@ struct _amqp_channel_object {
 	zend_object zo;
 #else
 	zend_object zo;
+	zval *this_ptr;
 	amqp_channel_resource *channel_resource;
 	amqp_channel_callbacks callbacks;
 	zval  **gc_data;
@@ -342,6 +338,7 @@ struct _amqp_connection_object {
 
 ZEND_BEGIN_MODULE_GLOBALS(amqp)
     char *error_message;
+    PHP5to7_param_long_type_t error_code;
 ZEND_END_MODULE_GLOBALS(amqp)
 
 ZEND_EXTERN_MODULE_GLOBALS(amqp);
@@ -361,7 +358,7 @@ ZEND_EXTERN_MODULE_GLOBALS(amqp);
 #endif
 
 #ifndef PHP_AMQP_VERSION
-#define PHP_AMQP_VERSION "1.8.0-dev"
+#define PHP_AMQP_VERSION "1.9.4-dev"
 #endif
 
 #ifndef PHP_AMQP_REVISION
@@ -375,12 +372,8 @@ int php_amqp_error_advanced(amqp_rpc_reply_t reply, char **message, amqp_connect
  * @deprecated
  */
 void php_amqp_zend_throw_exception(amqp_rpc_reply_t reply, zend_class_entry *exception_ce, const char *message, PHP5to7_param_long_type_t code TSRMLS_DC);
-
 void php_amqp_zend_throw_exception_short(amqp_rpc_reply_t reply, zend_class_entry *exception_ce TSRMLS_DC);
-
 void php_amqp_maybe_release_buffers_on_channel(amqp_connection_resource *connection_resource, amqp_channel_resource *channel_resource);
-
-amqp_bytes_t php_amqp_long_string(char const *cstr, PHP5to7_param_str_len_type_t len);
 
 #endif	/* PHP_AMQP_H */
 
